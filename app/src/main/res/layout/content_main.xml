@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    app:layout_behavior="@string/appbar_scrolling_view_behavior"
+    tools:context=".MainActivity"
+    tools:showIn="@layout/activity_main">
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingHorizontal="@dimen/horizontal_padding">
+
+        <TextView android:id="@+id/mainActTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="70sp"
+            android:paddingBottom="50sp"
+            android:text="SignalCapturer\nis running!"
+            android:textAlignment="center"
+            android:textColor="@color/colorPrimaryDark"
+            android:textSize="30sp" />
+
+        <TextView
+            android:id="@+id/mainActThankYouTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="10sp"
+            android:text="Thank you!"
+            android:textAlignment="viewStart"
+            android:textColor="@color/colorAccent"
+            android:textSize="20sp" />
+
+        <TextView android:id="@+id/mainActThankYouNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="30sp"
+            android:textAlignment="viewStart"
+            android:textSize="16sp"
+            android:text="@string/thank_you_note"/>
+
+        <TextView android:id="@+id/mainActLearnMore"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="0sp"
+            android:textAlignment="viewStart"
+            android:textSize="16sp"
+            android:text="@string/learn_more_note"
+            android:autoLink="web" />
+
+        <Button android:id="@+id/buttonGrantPermission"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="Grant Permission"
+            android:onClick="reGrantPermission"
+            android:visibility="gone" />
+
+
+    </LinearLayout>
+
+</androidx.core.widget.NestedScrollView>
