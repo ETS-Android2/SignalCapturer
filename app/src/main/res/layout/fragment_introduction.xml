@@ -36,10 +36,21 @@
             android:id="@+id/introAbout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingBottom="10sp"
+            android:paddingBottom="20sp"
             android:textAlignment="viewStart"
             android:textSize="14sp"
             android:text="@string/intro_about"/>
+
+        <TextView
+            android:id="@+id/seePrivacyTVButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="10sp"
+            android:textAlignment="viewStart"
+            android:textSize="14sp"
+            android:onClick="seePrivacyPolicyOnClick"
+            android:text="@string/see_privacy_policy"
+            android:textColor="#67AEDD" />
 
         <TextView
             android:id="@+id/introAbout2"
@@ -48,6 +59,7 @@
             android:paddingBottom="10sp"
             android:textAlignment="viewStart"
             android:textSize="14sp"
+            android:visibility="gone"
             android:text="@string/intro_about2"/>
 
         <TextView
@@ -57,7 +69,18 @@
             android:paddingBottom="10sp"
             android:textAlignment="viewStart"
             android:textSize="14sp"
+            android:visibility="gone"
             android:text="@string/intro_about3"/>
+
+        <TextView
+            android:id="@+id/otherFAQs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="10sp"
+            android:textAlignment="viewStart"
+            android:textSize="14sp"
+            android:text="@string/otherFAQs"
+            android:autoLink="web" />
 
 
     </LinearLayout>

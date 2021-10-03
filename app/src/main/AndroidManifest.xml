@@ -28,6 +28,16 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".RestartService"
+            android:enabled="true"
+            android:exported="false"
+            android:label="RestartServiceWhenStopped" >
+            <intent-filter>
+                <action android:name="RestartService" />
+            </intent-filter>
+        </receiver>
+
         <activity
             android:name=".MainActivity"
             android:label="@string/app_name"
@@ -39,7 +49,8 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".backGroundService" />
+        <service android:name=".backGroundService"
+            android:foregroundServiceType="dataSync"/>
         <service
             android:name=".sendToServer"
             android:permission="android.permission.BIND_JOB_SERVICE" />

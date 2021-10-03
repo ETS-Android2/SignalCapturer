@@ -27,19 +27,23 @@ import android.os.CpuUsageInfo;
 import android.os.Handler;
 import android.os.HardwarePropertiesManager;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.Parcelable;
 import android.os.PersistableBundle;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.text.LoginFilter;
+import android.text.format.DateUtils;
 import android.util.Log;
+import android.util.TimeUtils;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -89,17 +93,21 @@ public class backGroundService extends Service {
     private static boolean isStarted = false;
     private static final int delayIntervalForDetailedMemStats = 10;  // 10 seconds
 //    private static final int CPU_LOG_DELAY = 5*1000;                // 2 minutes
-    private static final int NETWORK_UPLOAD_DELAY = 15*60*1000;     // 15 minutes
+    private static final long NETWORK_UPLOAD_DELAY = 15 * DateUtils.MINUTE_IN_MILLIS;     // 15 minutes
+    private static final long RESTART_SERVICE_INTERVAL = 30 * DateUtils.MINUTE_IN_MILLIS; // 30 minutes
 
     private static boolean isDeviceInteractive;
     private static boolean isDeviceInPowerSave;
     private static boolean isDeviceBatteryLow;
 
-    private static final Handler handler = new Handler();
+//    private static final Handler handler = new Handler();
+    private Handler handler;
+    private JobScheduler fileUploadJob = null;
+    private JobScheduler configUploadJob = null;
 
-    public backGroundService(){
+    private long timeAtServiceStart = 0;
 
-    }
+    public backGroundService() { }
 
     @Nullable
     @Override
@@ -109,12 +117,15 @@ public class backGroundService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId){
+        Log.d("SERVICE", "Came to start a new service at " + java.text.DateFormat.getDateTimeInstance().format(Calendar.getInstance().getTime()));
 
         // do your jobs here
         try{
 //            TelephonyManager telephonyManager = (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
 
-            this.logFile = intent.getExtras().getString("id") + "_"+ Build.MANUFACTURER /* + android.os.Build.MODEL */ +  "_" + "signalsLogger.txt";
+            String androidID = Settings.System.getString(this.getContentResolver(), Settings.Secure.ANDROID_ID);
+
+            this.logFile = androidID + "_"+ Build.MANUFACTURER /* + android.os.Build.MODEL */ +  "_" + "signalsLogger.txt";
             this.logFile = this.logFile.replace(" ","");
 
             Log.d("FILEPATH", this.getExternalFilesDir(null).getAbsolutePath() + this.logFile);
@@ -132,13 +143,16 @@ public class backGroundService extends Service {
 
             isStarted = true;
 
+            Log.d("SERVICE", "Starting new service jobs at " + java.text.DateFormat.getDateTimeInstance().format(Calendar.getInstance().getTime()));
+            timeAtServiceStart = System.currentTimeMillis();
+
             // fill the variables that are going to be changed by pending intents
             isDeviceInteractive = getDeviceInteractivityStatus(getApplicationContext());
             isDeviceInPowerSave = getDevicePowerSaveState();
             isDeviceBatteryLow = getLowBatteryStatus(getApplicationContext());
 
             // Job to upload mem logs and cpu logs
-            JobScheduler jobScheduler = (JobScheduler)getApplicationContext().getSystemService(JOB_SCHEDULER_SERVICE);
+            final JobScheduler jobScheduler = (JobScheduler)getApplicationContext().getSystemService(JOB_SCHEDULER_SERVICE);
             ComponentName componentName = new ComponentName(this, sendToServer.class);
             PersistableBundle bundle = new PersistableBundle();
             bundle.putString("fileName", logFile);
@@ -151,9 +165,14 @@ public class backGroundService extends Service {
                     .build();
             jobScheduler.schedule(jobInfoObj);
 
-            handler.post(periodicUpdate);
+            final JobScheduler extraDataJob = saveExtraData();
 
-            saveExtraData();
+            fileUploadJob = jobScheduler;
+            configUploadJob = extraDataJob;
+
+            handler = new Handler(Looper.getMainLooper());
+
+            handler.post(periodicUpdate);
 
 //            // Job to log CPU
 //            JobScheduler jobScheduler1 = (JobScheduler) getApplicationContext().getSystemService(JOB_SCHEDULER_SERVICE);
@@ -179,7 +198,7 @@ public class backGroundService extends Service {
 
         }
 
-        return START_REDELIVER_INTENT; // super.onStartCommand(intent, flags, startId);
+        return START_STICKY; // super.onStartCommand(intent, flags, startId);
     }
 
     private boolean getDevicePowerSaveState() {
@@ -264,12 +283,31 @@ public class backGroundService extends Service {
         }
     };
 
+    /**
+     * Called by the system to notify a Service that it is no longer used and is being removed.  The
+     * service should clean up any resources it holds (threads, registered
+     * receivers, etc) at this point.  Upon return, there will be no more calls
+     * in to this Service object and it is effectively dead.  Do not call this method directly.
+     */
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+
+        unregisterReceiver(broadcastReceiver);
+        isStarted = false;
+        Log.d("SERVICE", "onDestroy() was called");
+        Log.d("SERVICE", "going to restart service");
+        Intent restartService = new Intent("RestartService")
+                .setPackage(getPackageName());
+        sendBroadcast(restartService);
+    }
+
     private void writeBroadcastSignal(String msg) {
         try {
             long unixTime = System.currentTimeMillis();
             String filename = this.getExternalFilesDir(null).getAbsolutePath() + this.logFile;
             FileWriter fw = new FileWriter(filename, true);
-            fw.write("BROADCAST:" + "\t" + Long.toString(unixTime) + "\t" + msg + "\n");
+            fw.write("B:" + "\t" + Long.toString(unixTime) + "\t" + msg + "\n"); // broadcast message
             fw.close();
         } catch (IOException exception) {
             Log.e("WriteError", exception.getMessage());
@@ -278,17 +316,39 @@ public class backGroundService extends Service {
 
     private final Runnable periodicUpdate = new Runnable () {
         public int counter = 0;
+        public boolean stopHandler = false;
         public void run() {
             // scheduled another events to be in 10 seconds later
-            handler.postDelayed(periodicUpdate, 1000);
-//            Log.d("MEM_STARTED", "MEMSAVE called");
-            counter++;
-            if (counter == delayIntervalForDetailedMemStats) {
-                counter = 0;
-                saveMemory(true);
-//                saveCPU(logFile, System.currentTimeMillis());
-            } else {
-                saveMemory(false);
+            if (!stopHandler) {
+
+                handler.postDelayed(periodicUpdate, 1000);
+
+    //            Log.d("MEM_STARTED", "MEMSAVE called");
+
+                counter++;
+                if (counter == delayIntervalForDetailedMemStats) {
+                    counter = 0;
+                    saveMemory(true);
+    //                saveCPU(logFile, System.currentTimeMillis());
+                    long currentTime = System.currentTimeMillis();
+                    if (currentTime > timeAtServiceStart + RESTART_SERVICE_INTERVAL) {
+
+                        // we need to stop now and restart
+                        Log.d("SERVICE", "Stopping service at " + java.text.DateFormat.getDateTimeInstance().format(Calendar.getInstance().getTime()));
+
+                        // stop job
+                        if (fileUploadJob != null) {
+                            fileUploadJob.cancel(1);
+                        }
+                        // stop service
+
+                        stopSelf();
+                        Log.d("SERVICE", "This is logged after stopSelf()");
+                        stopHandler = true;
+                    }
+                } else {
+                    saveMemory(false);
+                }
             }
         }
     };
@@ -297,14 +357,15 @@ public class backGroundService extends Service {
     private void startMyOwnForeground(){
         String NOTIFICATION_CHANNEL_ID = "com.example.signalCapturer";
         String channelName = "My Background Service";
-        NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_NONE);
+        NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_LOW);
         chan.setLightColor(Color.BLUE);
         chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
         NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         assert manager != null;
         manager.createNotificationChannel(chan);
 
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID);
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+                .setPriority(Notification.PRIORITY_LOW);
 
         Intent notificationIntent = new Intent(this, MainActivity.class);
 
@@ -337,6 +398,7 @@ public class backGroundService extends Service {
             startForeground(NOTIF_ID, new NotificationCompat.Builder(this,
                     NOTIF_CHANNEL_ID) // don't forget create a notification channel first
                     .setOngoing(true)
+                    .setPriority(Notification.PRIORITY_LOW)
 //                    .setSmallIcon(R.drawable.ic_notification)
                     .setContentTitle(getString(R.string.app_name))
                     .setContentText("Service is running background")
@@ -425,12 +487,10 @@ public class backGroundService extends Service {
     public void onTrimMemory(int level) {
         super.onTrimMemory(level);
 
-        String trimLevelName = getTrimLevelName(level);
-        saveTrimSignal(System.currentTimeMillis(), level, trimLevelName);
-//        Log.e("TRIM_SIGNAL", "trimLevelName");
+        saveTrimSignal(System.currentTimeMillis(), level);
     }
 
-    public void saveTrimSignal(long unixTime, int trimLevel, String trimLevelName) {
+    public void saveTrimSignal(long unixTime, int trimLevel) {
         try {
 
             ActivityManager actManager = (ActivityManager) this.getSystemService(Context.ACTIVITY_SERVICE);
@@ -438,12 +498,16 @@ public class backGroundService extends Service {
             actManager.getMemoryInfo(memInfo);
             long totalMemory = memInfo.availMem;
 
-//            String mydate = java.text.DateFormat.getDateTimeInstance().format(Calendar.getInstance().getTime());
+            AudioManager manager = (AudioManager)this.getSystemService(Context.AUDIO_SERVICE);
+
+            String powerInfo = getIntFromBool(isDeviceInteractive) + "\t" + getIntFromBool(isDeviceInPowerSave) + "\t" + getIntFromBool(isDeviceBatteryLow);
+
             String filename = this.getExternalFilesDir(null)
                     .getAbsolutePath() + this.logFile;
-//            Log.e("WriteError",filename);
+
             FileWriter fw = new FileWriter(filename, true);
-            fw.write("TRIM_SIGNAL:" + "\t" + Long.toString(unixTime) + "\t" + trimLevel + "\t" + trimLevelName + "\t" + totalMemory + "\n");
+            fw.write("T:" + "\t" + unixTime + "\t" + trimLevel + "\t" +
+                    totalMemory + "\t" + powerInfo + "\t" + getIntFromBool(manager.isMusicActive()) + "\n");
             fw.close();
             //            Log.e("TRIM_SIGNAL",mydate + "\t" + Long.toString(unixTime) + "\t" + trimLevelName);
 
@@ -496,20 +560,24 @@ public class backGroundService extends Service {
 
             String numberOfRunningServices = getNumberOfRunningServices(actManager);
 
-            String powerInfo = isDeviceInteractive + "\t" + isDeviceInPowerSave + "\t" + isDeviceBatteryLow;
+            String powerInfo = getIntFromBool(isDeviceInteractive) + "\t" + getIntFromBool(isDeviceInPowerSave) + "\t" + getIntFromBool(isDeviceBatteryLow);
 
-            String strToWrite = Long.toString(unixTime) + "\t" + numberOfRunningServices + "\t" +
-                    totalMemory + "\t" + lastTrimLevel + "\t" + getTrimLevelName(lastTrimLevel) + "\t"
-                    + powerInfo + "\t" + manager.isMusicActive();
+            String strToWrite =
+                    unixTime + "\t" +
+                    numberOfRunningServices + "\t" +
+                    totalMemory + "\t" +
+                    lastTrimLevel + "\t" +
+                    powerInfo + "\t" +
+                    getIntFromBool(manager.isMusicActive());
 
             FileWriter fw = new FileWriter(filename, true);
 
             if (isDetailed) {
                 String detailedStats = getDetailedMemStatsString();
                 strToWrite += "\t" + detailedStats;
-                fw.write("MEM_DETAILED:" + "\t" + strToWrite + "\n");
+                fw.write("D:" + "\t" + strToWrite + "\n");
             } else {
-                fw.write("MEM:" + "\t" + strToWrite + "\n");
+                fw.write("M:" + "\t" + strToWrite + "\n");
             }
 
             fw.close();
@@ -528,16 +596,21 @@ public class backGroundService extends Service {
 //                    isDeviceInteractive, isDeviceInPowerSave, isDeviceBatteryLow));
 //
             String mydate = java.text.DateFormat.getDateTimeInstance().format(Calendar.getInstance().getTime());
-            Log.d("MEMORY_LOG",mydate + " " + strToWrite);
+            Log.d("MEMORY_LOG",mydate + " " + strToWrite + " " + filename);
 
         } catch (IOException ioe) {
             Log.e("WriteError",ioe.getMessage());
         }
     }
 
+    private int getIntFromBool(boolean inp) {
+        if (inp) return 1;
+        return 0;
+    }
+
     private String getNumberOfRunningServices(ActivityManager actManager) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            return "null";
+            return "-";
         } else {
             List<ActivityManager.RunningServiceInfo> listApps = actManager.getRunningServices(10000);
             return Integer.toString(listApps.size());
@@ -685,7 +758,7 @@ public class backGroundService extends Service {
                 return "TRIM_MEMORY_COMPLETE";
             }
             case 0: {
-                return "ZERO";
+                return "0";
             }
             default: {
                 return "UNKNOWN_LEVEL";
@@ -696,39 +769,49 @@ public class backGroundService extends Service {
     private int getLastTrimLevel() {
         ActivityManager.RunningAppProcessInfo rapI = new ActivityManager.RunningAppProcessInfo();
         ActivityManager.getMyMemoryState(rapI);
-        String state = getTrimLevelName(rapI.lastTrimLevel);
-//        Log.i("TRIM_LEVEL", String.format("rapI.lastTrimLevel: %d", rapI.lastTrimLevel));
-//        Log.i("TRIM_LEVEL", String.format("state from memoryStat: %s", state));
-
         return rapI.lastTrimLevel;
     }
 
-    public void saveExtraData() {
+    public JobScheduler saveExtraData() {
         try {
             ActivityManager actManager = (ActivityManager) this.getSystemService(Context.ACTIVITY_SERVICE);
             ActivityManager.MemoryInfo memInfo = new ActivityManager.MemoryInfo();
             actManager.getMemoryInfo(memInfo);
 
-            String mydate = java.text.DateFormat.getDateTimeInstance().format(Calendar.getInstance().getTime());
+//            String mydate = java.text.DateFormat.getDateTimeInstance().format(Calendar.getInstance().getTime());
             String filename = this.getExternalFilesDir(null)
                     .getAbsolutePath() + "Configuration_" + this.logFile;
 //            Log.e("WriteError",filename);
 
+            // getFormData() returns tab-separated string of form results
             String formData = getFormData();
 
+            long unixTime = System.currentTimeMillis();
+
+            String toWrite =
+                    "C:\t" +
+                    unixTime + "\t" +
+                    formData + "\t" +
+                    Build.MANUFACTURER + "\t" +
+                    memInfo.totalMem + "\t" +
+                    memInfo.threshold + "\t" +
+                    actManager.isLowRamDevice() + "\t" +
+                    Runtime.getRuntime().availableProcessors() + "\t" +
+                    Build.VERSION.SDK_INT + "\n";
+
             FileWriter fw = new FileWriter(filename, true);
-            fw.write(
-                    formData +
-//                    "Brand: " + Build.BRAND + "\n"+
-//                         "Model: " + android.os.Build.MODEL + "\n" +
-                            "Manufacturer: " + Build.MANUFACTURER + "\n" +
-//                            "Hardware: " + Build.HARDWARE + "\n" +
-                            "TotalMemory: " + memInfo.totalMem + "\n" +
-                            "Thresholds: "  + memInfo.threshold + "\n" +
-                            "isLowRAMDevice: " + actManager.isLowRamDevice() + "\n" +
-                            "numberOfCores: " + Runtime.getRuntime().availableProcessors() + "\n" +
-                            "APILevel: " + Build.VERSION.SDK_INT + "\n<CONFIG_END>\n"
-            );
+            fw.write(toWrite);
+//                    formData +
+////                    "Brand: " + Build.BRAND + "\n"+
+////                         "Model: " + android.os.Build.MODEL + "\n" +
+//                            "Manufacturer: " + Build.MANUFACTURER + "\n" +
+////                            "Hardware: " + Build.HARDWARE + "\n" +
+//                            "TotalMemory: " + memInfo.totalMem + "\n" +
+//                            "Thresholds: "  + memInfo.threshold + "\n" +
+//                            "isLowRAMDevice: " + actManager.isLowRamDevice() + "\n" +
+//                            "numberOfCores: " + Runtime.getRuntime().availableProcessors() + "\n" +
+//                            "APILevel: " + Build.VERSION.SDK_INT + "\n<CONFIG_END>\n"
+//            );
             fw.close();
             JobScheduler jobScheduler = (JobScheduler)getApplicationContext()
                     .getSystemService(JOB_SCHEDULER_SERVICE);
@@ -745,8 +828,12 @@ public class backGroundService extends Service {
                     .build();
             jobScheduler.schedule(jobInfoObj);
 
+            Log.i("jobSchedule", "Going to exit Job Schedule");
+            return jobScheduler;
+
         } catch (IOException ioe) {
             Log.e("WriteError", ioe.getMessage());
+            return null;
         }
     }
 
@@ -760,15 +847,13 @@ public class backGroundService extends Service {
         }
         String q6 = prefs.getString(FORM_Q6, DEFAULT_FORM_Q6);
 
-        long unixTime = System.currentTimeMillis();
 
-        StringBuilder toWrite = new StringBuilder("time: " + unixTime + "\n" +
-                "age: " + age + "\n" /*+*/
-                /*"gender: " + gender + "\n"*/);
-        for (int i = 0; i < radioAnswers.length; ++i) {
-            toWrite.append("radio").append(i).append(": ").append(radioAnswers[i]).append("\n");
+
+        StringBuilder toWrite = new StringBuilder(age + "\t" /*+ gender + "\t"*/);
+        for (int radioAnswer : radioAnswers) {
+            toWrite.append(radioAnswer).append("\t");
         }
-        toWrite.append("q6: ").append(q6).append("\n<FORM_END>\n");
+        toWrite.append(q6);
 
         return toWrite.toString();
     }
@@ -823,22 +908,6 @@ public class backGroundService extends Service {
 //            Log.e("WriteError", ioe.getMessage());
 //        }
 //    }
-
-    private void saveFormContentsAsPreferences(String ageAns,
-                                               String genderAns,
-                                               int[] radioAnswers,
-                                               String q6Ans) {
-        SharedPreferences sharedPref = getSharedPreferences(SHARED_PREFERENCES_NAME, MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPref.edit();
-        editor.putString(FORM_AGE, ageAns);
-        editor.putString(FORM_GENDER, genderAns);
-        for (int i = 0; i < radioAnswers.length; ++i) {
-            editor.putInt(FORM_RADIO + Integer.toString(i + 1), radioAnswers[i]);
-        }
-        editor.putString(FORM_Q6, q6Ans);
-        editor.putBoolean(IS_SURVEY_DONE_PREF, true);
-        editor.apply();
-    }
 
 //    private String getCpuDetails() {
 //

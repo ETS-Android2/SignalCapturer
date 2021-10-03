@@ -20,7 +20,7 @@
             android:layout_height="wrap_content"
             android:paddingTop="70sp"
             android:paddingBottom="50sp"
-            android:text="SignalCapturer\nis running!"
+            android:text="Running in the background!"
             android:textAlignment="center"
             android:textColor="@color/colorPrimaryDark"
             android:textSize="30sp" />
@@ -43,22 +43,31 @@
             android:textSize="16sp"
             android:text="@string/thank_you_note"/>
 
+        <TextView android:id="@+id/instructionThankYouNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="10sp"
+            android:textAlignment="viewStart"
+            android:textSize="16sp"
+            android:text="@string/instruction_thank_you_note"/>
+
+        <TextView android:id="@+id/instruction2ThankYouNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="30sp"
+            android:textAlignment="viewStart"
+            android:textSize="16sp"
+            android:text="@string/instruction2_note"/>
+
         <TextView android:id="@+id/mainActLearnMore"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:paddingBottom="0sp"
             android:textAlignment="viewStart"
             android:textSize="16sp"
+            android:layout_marginBottom="@dimen/title_padding_top"
             android:text="@string/learn_more_note"
             android:autoLink="web" />
-
-        <Button android:id="@+id/buttonGrantPermission"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:text="Grant Permission"
-            android:onClick="reGrantPermission"
-            android:visibility="gone" />
 
 
     </LinearLayout>

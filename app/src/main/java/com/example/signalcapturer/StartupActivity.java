@@ -1,3 +1,4 @@
+
 package com.example.signalcapturer;
 
 import androidx.annotation.NonNull;
@@ -48,8 +49,9 @@ public class StartupActivity extends AppCompatActivity {
 
     private Button nextButton, backButton;
 
-    private Fragment formFragment;
-    private Fragment consentFragment;
+    private Fragment introFragment = null;
+    private Fragment formFragment = null;
+    private Fragment consentFragment = null;
 
     private Spinner spinnerAge;
     private static final String[] ageGroups = {"<12", "12-17", "18-24", "24-30", "30-50", "50-60", ">60"};
@@ -121,7 +123,8 @@ public class StartupActivity extends AppCompatActivity {
         @Override
         public Fragment createFragment(int position) {
             if (position == 0) {
-                return new IntroductionFragment();
+                introFragment = new IntroductionFragment();
+                return introFragment;
             } else if (position == 1) {
                 formFragment = new FormFragment();
                 return formFragment;
@@ -159,7 +162,7 @@ public class StartupActivity extends AppCompatActivity {
         if (formFragment != null) {
             View formFragmentView = formFragment.getView();
             if (formFragmentView != null) {
-                EditText q6_editText = formFragmentView.getRootView().findViewById(R.id.q6multi_text);
+                EditText q6_editText = formFragmentView.findViewById(R.id.q6multi_text);
                 if (q6_editText != null) {
                     return q6_editText.getText().toString();
                 }
@@ -176,7 +179,7 @@ public class StartupActivity extends AppCompatActivity {
         if (consentFragment != null) {
             View consentFragmentView = consentFragment.getView();
             if (consentFragmentView != null) {
-                CheckBox checkBox = consentFragmentView.getRootView().findViewById(R.id.consentCheckBox);
+                CheckBox checkBox = consentFragmentView.findViewById(R.id.consentCheckBox);
                 if (checkBox != null) {
                     return checkBox.isChecked();
                 }
@@ -368,8 +371,8 @@ public class StartupActivity extends AppCompatActivity {
         if (consentFragment != null) {
             View consentFragmentView = consentFragment.getView();
             if (consentFragmentView != null) {
-                TextView tvButton = consentFragmentView.getRootView().findViewById(R.id.consentShowDetailsButton);
-                TextView tvDetails = consentFragmentView.getRootView().findViewById(R.id.consentMemoryStatsDetails);
+                TextView tvButton = consentFragmentView.findViewById(R.id.consentShowDetailsButton);
+                TextView tvDetails = consentFragmentView.findViewById(R.id.consentMemoryStatsDetails);
                 if (tvButton != null && tvDetails != null) {
                     if (tvDetails.getVisibility() == View.GONE) {
                         tvButton.setText(R.string.hide_details);
@@ -380,6 +383,34 @@ public class StartupActivity extends AppCompatActivity {
                     }
                 }
             }
+        }
+    }
+
+    public void seePrivacyPolicyOnClick(View view) {
+        if (introFragment != null) {
+            View fragmentView = introFragment.getView();
+            if (fragmentView != null) {
+                TextView tvShowPrivacy = fragmentView.findViewById(R.id.seePrivacyTVButton);
+                TextView tvIntroAbout2 = fragmentView.findViewById(R.id.introAbout2);
+                TextView tvIntroAbout3 = fragmentView.findViewById(R.id.introAbout3);
+                if (tvShowPrivacy != null && tvIntroAbout2 != null && tvIntroAbout3 != null) {
+                    if (tvIntroAbout2.getVisibility() == View.GONE) {
+                        tvShowPrivacy.setText(R.string.hide_privacy_policy);
+                        tvIntroAbout2.setVisibility(View.VISIBLE);
+                        tvIntroAbout3.setVisibility(View.VISIBLE);
+                    } else {
+                        tvShowPrivacy.setText(R.string.see_privacy_policy);
+                        tvIntroAbout2.setVisibility(View.GONE);
+                        tvIntroAbout3.setVisibility(View.GONE);
+                    }
+                } else {
+                    Log.e("STARTUP_ACT", "introFragmentView's views are null");
+                }
+            } else {
+                Log.e("STARTUP_ACT", "introFragmentView is null");
+            }
+        } else {
+            Log.e("STARTUP_ACT", "introFragmen is null");
         }
     }
 

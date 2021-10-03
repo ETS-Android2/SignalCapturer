@@ -95,18 +95,18 @@
 
     <string name="intro_about">
         SignalCapturer surveys memory consumption patterns in real-world Android devices. This is
-        part of a research project at the NSG Lab at LUMS led by Dr. Zafar Ayyub Qazi, Dr. Ihsan
-        Ayyub Qazi, and Dr. Zahaib Akhtar. The project seeks to develop solutions for improving user
-        experience on mobile devices when memory falls low.
+        part of a research project at the NSG Lab at LUMS under Dr. Zafar Ayyub Qazi, Dr. Ihsan
+        Ayyub Qazi, and Dr. Zahaib Akhtar. It seeks to understand how users\' experience on mobile
+        devices is affected by their memory sizes and processing capabilities.
     </string>
 
     <string name="intro_about2">
-        Please note that before collecting any piece of information, this application will take your
+        Before collecting any piece of information, this application will take your
         explicit consent for it.
     </string>
 
     <string name="intro_about3">
-        Also note that this application employs special care to keep the device user anonymous.
+        This application employs special care to keep the device user anonymous.
         Information which may disclose the identity of the device user such as the device model,
         its IMEI, the names of its hardware components etc., will not be collected.
     </string>
@@ -124,7 +124,7 @@
     <string name="q5">How often does the device user multitask with more than two apps?<span style="color:red"><strong> *</strong></span></string>
     <string name="q6">
         Any other memory/cpu intensive activity in your knowledge that is performed on this device?
-        (e.g. video editing)
+        (e.g. video editing, BitTorrent, etc.)
     </string>
     <string name="requried_text">
         <span style="color:red"><strong>*</strong></span> Required
@@ -154,7 +154,7 @@
 
         the following each second:\n
         \t  1. Amount of memory available\n
-        \t  2. Number of running services\n
+        \t  2. Number of running services (For Android &#60;8)\n
         \t  3. The last reported low-memory signal\n
         \t  4. Is the device in an interactive state?\n
         \t  5. Is the device battery low?\n
@@ -192,7 +192,7 @@
         \t  21. VmallocChunk
     </string>
 
-    <string name="learn_more">To learn the exact API calls that are made to obtain this data, to
+    <string name="learn_more">To learn the exact API calls that are made to obtain this data, or to
         view this application\'s source code, visit nsg.lums.edu.pk/SignalCapturer
     </string>
 
@@ -200,13 +200,23 @@
         on mobile devices!
     </string>
 
-    <string name="learn_more_note">To recall what we are collecting, or to see the application\'s
-        source code, visit nsg.lums.edu.pk/SignalCapturer
+    <string name="instruction_thank_you_note">You may close this application now. SignalCapturer
+        will remain running in the background.
+    </string>
+
+    <string name="instruction2_note">As long as this app runs, you will keep receiving a
+        notification. If you ever spot that the notification is not present, please reopen this app
+        to let it resume its activities.</string>
+
+    <string name="learn_more_note">To recall what we are collecting, to see the application\'s
+        source code, or for other information, visit nsg.lums.edu.pk/SignalCapturer
     </string>
 
     <string name="need_permission_msg">The application requires permission to read/write files so that it can
         temporarily store logs on the device until they are uploaded to the server.</string>
 
-    <string name="server_url">https://nsg.lums.edu.pk/lumsMobileResearch/</string>
+    <string name="see_privacy_policy"><u>See Privacy Policy</u></string>
+    <string name="hide_privacy_policy"><u>Hide Privacy Policy</u></string>
+    <string name="otherFAQs">Visit nsg.lums.edu.pk/SignalCapturer for other FAQs.</string>
 
 </resources>

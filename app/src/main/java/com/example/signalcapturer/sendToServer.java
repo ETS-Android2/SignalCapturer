@@ -17,31 +17,29 @@ public class sendToServer extends JobService {
     int serverResponseCode = 0;
 
     /*
-    * SERVER_URL
-    *
-    * This is the URL to where the logs are uploaded
-    *
-    * For privacy and security reasons, this is not shared publicly and is replaced by an empty
-    * string. Contact Talha Waheed at 22100285@lums.edu.pk for further correspondence.
-    *
-    * */
+     * SERVER_URL
+     *
+     * This is the URL to where the logs are uploaded
+     *
+     * For privacy and security reasons, this is not shared publicly and is replaced by an empty
+     * string. Contact Talha Waheed at 22100285@lums.edu.pk for further correspondence.
+     *
+     * */
     private static final String SERVER_URL = "";
 
     @Override
     public boolean onStartJob(JobParameters jobParameters) {
         String filename = jobParameters.getExtras().getString("fileName");
         final String deviceConfig = jobParameters.getExtras().getString("deviceConfig");
-        Log.d("NETWORK", "Reached here with " + filename + ", " + deviceConfig);
+        Log.d("upload_NETWORK", "Reached here with " + filename + ", " + deviceConfig);
 
         class OneShotTask implements Runnable {
             final String filename;
             OneShotTask(String s) { filename = s; }
             public void run() {
-                Log.i("uploadFile", "Started upload");
+//                Log.i("upload", "Started upload");
                 if (Objects.requireNonNull(deviceConfig).equals("false")){
-                    uploadFile(SERVER_URL, filename);
-//                    String cpuLogFile = "CPU_" + filename;
-//                    uploadFile(SERVER_URL, cpuLogFile); // ENTER SERVER'S ADDRESS HERE
+                    uploadFile(SERVER_URL, filename); // ENTER SERVER'S ADDRESS HERE
                 } else {
                     uploadConfig(SERVER_URL, filename); // ENTER SERVER'S ADDRESS HERE
                 }
@@ -54,6 +52,7 @@ public class sendToServer extends JobService {
 
     @Override
     public boolean onStopJob(JobParameters jobParameters) {
+        Log.d("SERVICE", "onStopJob() called with deviceConfig " + jobParameters.getExtras().getString("deviceConfig"));
         return false;
     }
 
@@ -154,20 +153,21 @@ public class sendToServer extends JobService {
             } catch (MalformedURLException ex) {
 
 
-                Log.e("Upload file to server", "error: " + ex.getMessage(), ex);
+                Log.e("error_uploadFile", "error: " + ex.getMessage(), ex);
             } catch (Exception e) {
 
 
-                Log.e("Upload", "Exception : "
+                Log.e("error_uploadFile", "Exception : "
                         + e.getMessage(), e);
             }
+
             return serverResponseCode;
 
         } // End else block
     }
 
     public int uploadConfig(String sourceFileUri, String uploadFileName) {
-        Log.i("Network","Sending Config to server " + uploadFileName );
+        Log.i("uploadConfig","Sending Config to server " + uploadFileName );
 
         String fileName = uploadFileName;
 
@@ -183,7 +183,7 @@ public class sendToServer extends JobService {
 
         if (!sourceFile.isFile()) {
 
-            Log.e("uploadFile", "Source File not exist :" + uploadFileName);
+            Log.e("uploadConfig", "Source File not exist :" + uploadFileName);
 
             return 0;
 
@@ -241,7 +241,7 @@ public class sendToServer extends JobService {
                 serverResponseCode = conn.getResponseCode();
                 String serverResponseMessage = conn.getResponseMessage();
 
-                Log.i("uploadFile", "HTTP Response is : "
+                Log.i("uploadConfig", "HTTP Response is : "
                         + serverResponseMessage + ": " + serverResponseCode);
 
 
@@ -260,11 +260,11 @@ public class sendToServer extends JobService {
             } catch (MalformedURLException ex) {
 
 
-                Log.e("Upload file to server", "error: " + ex.getMessage(), ex);
+                Log.e("error_uploadConfig", "error: " + ex.getMessage(), ex);
             } catch (Exception e) {
 
 
-                Log.e("Upload", "Exception : "
+                Log.e("error_uploadConfig", "Exception : "
                         + e.getMessage(), e);
             }
             return serverResponseCode;

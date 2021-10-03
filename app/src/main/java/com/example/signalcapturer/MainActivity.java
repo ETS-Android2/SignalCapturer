@@ -93,8 +93,8 @@ public class MainActivity extends AppCompatActivity {
 //            we do not need to request permissions for API > 19
 //            requestAppPermissions();
 
-            Intent serviceIntent = new Intent(this, backGroundService.class)
-                    .putExtra("id", Settings.System.getString(this.getContentResolver(), Settings.Secure.ANDROID_ID));
+            Intent serviceIntent = new Intent(this, backGroundService.class);
+//                    .putExtra("id", Settings.System.getString(this.getContentResolver(), Settings.Secure.ANDROID_ID));
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(serviceIntent);
